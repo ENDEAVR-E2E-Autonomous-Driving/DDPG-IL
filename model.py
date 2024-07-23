@@ -6,6 +6,9 @@ Actor: Returns predicted action with some probability
 """
 class Actor(nn.Module):
     def __init__(self, pretrained_model) -> None:
+        """
+        pretrained_model: Trained imitation learning model used to initialize the Actor
+        """
         super(Actor, self).__init__()
 
         # initialize Actor with layers and weights of the pre-trained imitation learning model
@@ -40,6 +43,10 @@ Critic: Estimates the Q-value which determines the correctness of the action out
 """
 class Critic(nn.Module):
     def __init__(self, action_dim, pretrained_model) -> None:
+        """
+        pretrained_model: Trained imitation learning model used to initialize the Actor
+        action_dim: Number of actions, default is 3 (steer, throttle, brake)
+        """
         super(Critic, self).__init__()
 
         self.conv_blocks = pretrained_model.conv_blocks
@@ -84,8 +91,5 @@ class Critic(nn.Module):
 
         q_value = torch.cat(output_list, dim=0)
         return q_value
-
-
-
 
     
