@@ -52,7 +52,7 @@ class CarlaScene:
 
         self.actors.append(vehicle)
 
-        return CarlaVehicle(vehicle, spawn_point)
+        return CarlaVehicle(vehicle, self.world, spawn_point)
 
     def add_game_camera(self, camera):
         self.actors.append(camera.camera)
@@ -185,7 +185,7 @@ class CarlaScene:
 class CarlaCamera:
     def __init__(self, vehicle, x=1.1, y=0.0, z=1.4, w=200, h=88, fov=80, rot=None, tick=None, semantic=False):
         self.vehicle = vehicle
-        # self.world = vehicle.get_world()
+        self.world = vehicle.get_world()
         self.blueprint_library = self.world.get_blueprint_library()
 
         self.width = w
@@ -239,7 +239,7 @@ class CarlaCamera:
 
 
 class CarlaVehicle:
-    def __init__(self, vehicle, spawn_point=None):
+    def __init__(self, vehicle, world, spawn_point=None):
         self.object = vehicle
 
         self._last_steer = 0.0
@@ -247,9 +247,13 @@ class CarlaVehicle:
         self._spawn_point = spawn_point
 
         self.stuck_steps = 0
+        self.world = world
 
     def get_spawn_point(self):
         return self._spawn_point
+
+    def get_world(self):
+        return self.world
 
     def reset(self):
         if self._spawn_point:
