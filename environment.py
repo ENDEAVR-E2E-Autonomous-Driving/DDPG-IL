@@ -5,6 +5,8 @@ import queue
 import numpy as np
 import torch
 import math
+from agents.navigation.local_planner import LocalPlanner, RoadOption
+from agents.navigation.global_route_planner import GlobalRoutePlanner
 
 
 class CarlaScene:
@@ -30,13 +32,16 @@ class CarlaScene:
 
         # for waypoints
         self.spectator = self.world.get_spectator()
-        self.unique_waypoints = []
+        self.spawn_points = [] # spawn points are stored when a car is added
 
+        # collision info
+        self.collision_history = []
 
     def add_car(self, blueprint_name='vehicle.ford.crown', spawn_point=None):
         if spawn_point is None:
             spawn_points = self.world.get_map().get_spawn_points()
             spawn_point = random.choice(spawn_points)
+            self.spawn_points = spawn_points
 
         blueprint = self.blueprint_library.find(blueprint_name)
         vehicle = self.world.spawn_actor(blueprint, spawn_point)
@@ -44,6 +49,8 @@ class CarlaScene:
         physics_control = vehicle.get_physics_control()
         physics_control.use_sweep_wheel_collision = True
         vehicle.apply_physics_control(physics_control)
+
+        self.actors.append(vehicle)
 
         return CarlaVehicle(vehicle, spawn_point)
 
@@ -129,24 +136,50 @@ class CarlaScene:
 
         return traffic_manager
     
-    def generate_unique_waypoints(self, draw_waypoints=True):
-        print("Generating unique waypoints...")
-        spectator_pos = carla.Transform(carla.Location(x=0, y=30, z=200), carla.Rotation(pitch=-90, yaw=-90))
-        self.spectator.set_transform(spectator_pos)
-        all_waypoints = self.town_map.generate_waypoints(0.3)
-        self.unique_waypoints = []
-        i = 1
-        num_wp = len(all_waypoints)
-        for wp in all_waypoints:
-            print(f"{i}/{num_wp} waypoints")
-            if not self.unique_waypoints or not any(wp.transform.location.distance(uwp.transform.location) < 0.1 for uwp in self.unique_waypoints):
-                self.unique_waypoints.append(wp)
-                if draw_waypoints:
-                    self.world.debug.draw_string(wp.transform.location + carla.Location(z=1), 'O', color=carla.Color(r=255, g=0, b=0), life_time=120.0)
+    def add_collision_sensor(self, vehicle):
+        blueprint = self.world.get_blueprint_library().find('sensor.other.collision')
+        collision_sensor = self.world.spawn_actor(
+            blueprint,
+            carla.Transform(),
+            attach_to=vehicle.object
+        )
+        collision_sensor.listen(lambda event: self._on_collision(event))
 
-            i += 1
+        self.actors.append(collision_sensor)
 
-        print("Unique waypoints are generated and drawn.")
+    def _on_collision(self, event):
+        self.collision_history.append(event)
+    
+    def get_collision_history(self):
+        return self.collision_history
+    
+    def reset(self):
+        """
+        Used for reinitializing actors in a CARLA environment in Deep Reinforcement Learning.
+        - Destroys all current actors and returns a new vehicle with a camera and collision sensor attached.
+        - Initializes new spawn points, waypoints, planners, and randomized routes
+        """
+        # vehicle_name = vehicle.type_id
+
+        # destroy existing all actors and intialize new ones
+        self.cleanup()
+        self.collision_history.clear()
+
+        # add vehicle and add collision sensor to actor list
+        new_vehicle = self.add_car('vehicle.mitsubishi.fusorosa')
+        self.add_collision_sensor(new_vehicle)
+
+        # add forward camera
+        forward_camera = CarlaCamera(vehicle=new_vehicle, z=2.3)
+        self.add_camera(forward_camera)
+
+        # new planners and waypoints for routes
+        local_planner = LocalPlanner(new_vehicle.object, map_inst=self.world.get_map())
+
+        start_waypoint = self.world.get_map().get_waypoint(new_vehicle.get_spawn_point().location)
+        end_waypoint = self.world.get_map().get_waypoint(random.choice(self.spawn_points).location)
+        
+        return new_vehicle, forward_camera, local_planner, start_waypoint, end_waypoint
 
 
 class CarlaCamera:
@@ -214,8 +247,6 @@ class CarlaVehicle:
         self._spawn_point = spawn_point
 
         self.stuck_steps = 0
-        self.collision_history = []
-        self._setup_collision_sensor()
 
     def get_spawn_point(self):
         return self._spawn_point
@@ -238,7 +269,7 @@ class CarlaVehicle:
     def get_velocity_norm(self):
         return self.get_velocity() / 120.0
 
-    def get_autopilot_control(self, model, scalars, image, command):
+    def get_autopilot_control(self, model, scalars, image, command, for_training=False):
         if model:
             image = image.transpose((2, 0, 1))
             image = torch.from_numpy(image).float().unsqueeze(0)
@@ -249,41 +280,30 @@ class CarlaVehicle:
                 output = model(image, scalars, command)
                 steer, throttle, brake = tuple(output.squeeze().tolist())
 
-            steer = self._last_steer + (steer - self._last_steer) * 0.10
-            throttle = self._last_throttle + (throttle - self._last_throttle) * 0.25
+            if not for_training:
+                steer = self._last_steer + (steer - self._last_steer) * 0.10
+                throttle = self._last_throttle + (throttle - self._last_throttle) * 0.25
 
-            self._last_steer = steer
-            self._last_throttle = throttle
+                self._last_steer = steer
+                self._last_throttle = throttle
 
-            if self.get_velocity() >= 20.0:
-                throttle = 0.0
+                if self.get_velocity() >= 20.0:
+                    throttle = 0.0
 
             return steer, throttle, brake
         
+    def get_reward(self, closest_waypoint, collision_history):
+        """
+        Vehicle reward function: R_t = V_x * cos(theta) - V_x * sin(theta) - V_x * lanePostion - P
 
-    def _setup_collision_sensor(self):
-        blueprint = self.object.get_world().get_blueprint_library().find('sensor.other.collision')
-        self.collision_sensor = self.object.get_world().spawn_actor(
-            blueprint,
-            carla.Transform(),
-            attach_to=self.object
-        )
-        self.collision_sensor.listen(lambda event: self._on_collision(event))
+        V_x = velocity of the vehicle, theta = angle between vehicle and road center, 
+        lanePosition = off-center position of vehicle, P = additional penalty
 
-    def _on_collision(self, event):
-        self.collision_history.append(event)
+        V_x * cos(theta) = vehicle's velocity along direction of the road
+        V_x * sin(theta) = vehicle's velocity perpendicular to the road
+        V_x * lanePosition = penalty for the vehicle being off the center of the lane
+        """
         
-    """
-    Vehicle reward function: R_t = V_x * cos(theta) - V_x * sin(theta) - V_x * lanePostion - P
-
-    V_x = velocity of the vehicle, theta = angle between vehicle and road center, 
-    lanePosition = off-center position of vehicle, P = additional penalty
-
-    V_x * cos(theta) = vehicle's velocity along direction of the road
-    V_x * sin(theta) = vehicle's velocity perpendicular to the road
-    V_x * lanePosition = penalty for the vehicle being off the center of the lane
-    """
-    def update_reward(self, closest_waypoint):
         velocity = self.get_velocity()
 
         # get vehicle heading and waypoint heading in radians
@@ -304,7 +324,7 @@ class CarlaVehicle:
         # additional penalties
         additional_penalty = 0
 
-        if len(self.collision_history) > 0: # collision penalty
+        if len(collision_history) > 0: # collision penalty
             additional_penalty += 50
         if lanePosition > 2.0: # off-road penalty
             additional_penalty += 50
@@ -313,16 +333,17 @@ class CarlaVehicle:
         if abs(theta) > angle_threshold: # high angle deviation penalty
             additional_penalty += 10
         
+        done = False
         if velocity < 0.1: # stuck penalty
             self.stuck_steps += 1
-            if self.stuck_steps >= 5: # num consecutive low-speed stepts to be considered stuck
-                additional_penalty += 50
+            if self.stuck_steps >= 7: # num consecutive low-speed steps to be considered stuck
+                done = True
         else:
             self.stuck_steps = 0 # reset if not stuck anymore
 
         # final reward
         reward -= additional_penalty
 
-        return reward
+        return reward, done
 
 
