@@ -8,11 +8,7 @@ from statistics import mean as avg
 import logging
 import json
 
-import sys
 load_dotenv()
-carla_pythonapi_examples_path = os.environ.get("CARLA_PYTHONAPI_EXAMPLES_PATH")
-sys.path.append(carla_pythonapi_examples_path) # add agents folder to system paths to use GRP and local planner
-
 from model import *
 from environment import *
 from ou_noise import *
