@@ -1,0 +1,7 @@
+# agents==1.4.0
+# carla==0.9.15
+numpy==1.21.5
+pygame==2.6.0
+python-dotenv==1.0.1
+# torch==1.13.0 # install different version of pytorch
+torchrl==0.1.1

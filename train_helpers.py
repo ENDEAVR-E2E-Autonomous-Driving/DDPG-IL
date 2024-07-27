@@ -5,6 +5,12 @@ import numpy as np
 import torch
 import random
 from model import *
+import sys
+from dotenv import load_dotenv
+
+load_dotenv()
+carla_pythonapi_examples_path = os.environ.get("CARLA_PYTHONAPI_EXAMPLES_PATH")
+sys.path.append(carla_pythonapi_examples_path) # add agents folder to system paths to use GRP and local planner
 from agents.navigation.local_planner import LocalPlanner, RoadOption
 from agents.navigation.global_route_planner import GlobalRoutePlanner
 
