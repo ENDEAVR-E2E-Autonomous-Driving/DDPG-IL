@@ -6,7 +6,7 @@ CARLA_VERSION="0.9.15"
 CARLA_FILE="CARLA_${CARLA_VERSION}.tar.gz"
 CARLA_URL="https://carla-releases.s3.us-east-005.backblazeb2.com/Linux/${CARLA_FILE}"
 CARLA_DIR="/opt/carla-simulator"
-GITHUB_REPO="https://github.com/ENDEAVR-E2E-Autonomous-Driving/DDPG-IL"
+# GITHUB_REPO="https://github.com/ENDEAVR-E2E-Autonomous-Driving/DDPG-IL"
 
 # Update and install necessary system dependencies
 sudo apt-get update
@@ -29,7 +29,7 @@ sudo tar -xzvf ${CARLA_FILE} -C ${CARLA_DIR}
 # python -m pip install -r ${CARLA_DIR}/PythonAPI/examples/requirements.txt
 
 # Clone the GitHub repository
-git clone ${GITHUB_REPO}
+# git clone ${GITHUB_REPO}
 
 # Clean up
 rm ${ANACONDA_FILE} ${CARLA_FILE}
