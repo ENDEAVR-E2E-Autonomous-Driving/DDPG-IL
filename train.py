@@ -34,7 +34,7 @@ def main():
         logger.info("Initializing the environment and models...")
 
         env = CarlaScene(town='Town02')
-        grp = GlobalRoutePlanner(env.get_map(), sampling_resolution=4.0) # global planner for routes in environment
+        grp = GlobalRoutePlanner(env.world.get_map(), sampling_resolution=4.0) # global planner for routes in environment
 
         """Load and initialize models and replay buffers"""
         # loading the IL model
