@@ -1,4 +1,4 @@
 *.env
-*.pth
+# *.pth
 *.json
 __pycache__
