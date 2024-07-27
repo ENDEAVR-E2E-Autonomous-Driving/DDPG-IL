@@ -55,8 +55,8 @@ def main():
         target_critic = Critic(action_dim=action_dim, pretrained_model=il_model).to(device)
 
         # initialize optimizers and action selection noise
-        actor_optimizer = torch.optim.Adam(actor.parameters(), lr=1e-4).to(device)
-        critic_optimizer = torch.optim.Adam(critic.parameters(), lr=1e-3).to(device)
+        actor_optimizer = torch.optim.Adam(actor.parameters(), lr=1e-4)
+        critic_optimizer = torch.optim.Adam(critic.parameters(), lr=1e-3)
         mean = np.zeros(action_dim)
         std_dev = 0.2 * np.ones(action_dim)
         ou_noise = OUActionNoise(mean=mean, std_dev=std_dev)
