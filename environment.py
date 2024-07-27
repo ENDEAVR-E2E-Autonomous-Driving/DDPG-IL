@@ -185,7 +185,7 @@ class CarlaScene:
 class CarlaCamera:
     def __init__(self, vehicle, x=1.1, y=0.0, z=1.4, w=200, h=88, fov=80, rot=None, tick=None, semantic=False):
         self.vehicle = vehicle
-        self.world = vehicle.get_world()
+        # self.world = vehicle.get_world()
         self.blueprint_library = self.world.get_blueprint_library()
 
         self.width = w
