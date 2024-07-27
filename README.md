@@ -13,7 +13,9 @@ OR
 ```
 ./path/to/local_setup_windows.ps1 # perform this in PowerShell
 ```
-./
-4. 
+3. Activate the Anaconda base environment.
+```
+source <path to conda>/bin/activate
+```
 
 # Running the Trained Model
