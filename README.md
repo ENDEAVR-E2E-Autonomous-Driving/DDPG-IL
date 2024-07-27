@@ -36,13 +36,18 @@ pip install torch==1.13.0+cu116 torchvision==0.14.0+cu116 torchaudio==0.13.0 --e
 ```
 pip install -r <path to this repository>/requirements.txt
 ```
-8. Create a .env file and add environment variables for loading your imitation learning model and the CARLA agents library for route planning.
+8. Create a .env file and add an environment variable for loading your imitation learning model for pretraining.
 ```
 IL_MODEL="<path to your IL model>
-CARLA_PYTHONAPI_EXAMPLES_PATH="<path to carla>/PythonAPI/carla/"
 ```
-9. Launch the CARLA simulator and render off-screen to optimize performance.
+9. Launch the CARLA simulator and render off-screen to optimize performance (NOTE: You need OpenGL to run CARLA). Wait a minute or so for carla to fully launch.
 ```
-
+./CarlaUE4.sh -RenderOffScreen # Linux
+CarlaUE4.exe  -RenderOffScreen # Windows
+```
+10. Run the training program, happy training!
+```
+python train.py
+```
 
 # Running the Trained Model
