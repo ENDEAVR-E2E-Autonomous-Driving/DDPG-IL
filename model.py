@@ -15,7 +15,7 @@ class Actor(nn.Module):
 
         # initialize Actor with layers and weights of the pre-trained imitation learning model
         self.conv_blocks = pretrained_model.conv_blocks
-        self.img_fc = pretrained_model.image_fc
+        self.img_fc = pretrained_model.img_fc
         self.scalar_fc = pretrained_model.scalar_fc
         self.emb_fc = pretrained_model.emb_fc
         self.branches = pretrained_model.branches
@@ -52,7 +52,7 @@ class Critic(nn.Module):
         super(Critic, self).__init__()
 
         self.conv_blocks = pretrained_model.conv_blocks
-        self.img_fc = pretrained_model.image_fc
+        self.img_fc = pretrained_model.img_fc
         self.scalar_fc = pretrained_model.scalar_fc
 
         # adjust embedding layers for critic to include action dimension (3) as input
