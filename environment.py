@@ -10,7 +10,7 @@ from agents.navigation.global_route_planner import GlobalRoutePlanner
 
 
 class CarlaScene:
-    def __init__(self, town='Town10HD', weather=carla.WeatherParameters.ClearNoon):
+    def __init__(self, town='Town10HD', weather=carla.WeatherParameters.ClearNoon, steer_image_path=None):
         self.client = carla.Client('127.0.0.1', 2000)
         self.client.set_timeout(10.0)
         self.world = self.client.load_world(town)
@@ -28,7 +28,7 @@ class CarlaScene:
         self._game_camera = None
         self._clock = pygame.time.Clock()
 
-        self._steer_image = pygame.image.load('assets/wheel.png')
+        # self._steer_image = pygame.image.load('assets/wheel.png') 
 
         # for waypoints
         self.spectator = self.world.get_spectator()
