@@ -206,7 +206,7 @@ class CarlaCamera:
             self.camera_bp.set_attribute('sensor_tick', f'{tick}')
 
         self.camera_transform = carla.Transform(carla.Location(x=x, y=y, z=z), rot or carla.Rotation())
-        self.camera = self.world.spawn_actor(self.camera_bp, self.camera_transform, attach_to=self.vehicle)
+        self.camera = self.world.spawn_actor(self.camera_bp, self.camera_transform, attach_to=self.vehicle.object)
 
         self.queue = queue.LifoQueue()
         self.camera.listen(self.queue.put)
