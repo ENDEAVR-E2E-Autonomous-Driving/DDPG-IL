@@ -6,6 +6,7 @@ import torch
 import random
 from model import *
 from dotenv import load_dotenv
+import time
 load_dotenv()
 from agents.navigation.local_planner import LocalPlanner, RoadOption
 from agents.navigation.global_route_planner import GlobalRoutePlanner
@@ -53,6 +54,8 @@ def get_expert_data_with_IL(env, grp: GlobalRoutePlanner, il_model: IL_Model):
     storage = LazyMemmapStorage(max_size=10000, scratch_dir=exper_dir)
     expert_buffer = ReplayBuffer(storage=storage)
 
+    print_stats_interval = 10
+
     print("Starting IL Rounds")
     for _ in range(10):
         print("-------------------")
@@ -62,6 +65,7 @@ def get_expert_data_with_IL(env, grp: GlobalRoutePlanner, il_model: IL_Model):
         
         route = grp.trace_route(start_waypoint.transform.location, end_waypoint.transform.location)
         local_planner.set_global_plan(route)
+        num_waypoints = len(route)
 
         # execute local planner step to get command for the first step
         local_planner.run_step()
@@ -69,6 +73,10 @@ def get_expert_data_with_IL(env, grp: GlobalRoutePlanner, il_model: IL_Model):
 
         done = False
         total_reward = 0
+        steps = 0
+        completed_wps = 0
+
+        episode_start = time.time()
 
         command, command_cooldown_counter = get_command_and_cooldown(wp_direction, 0)
         state = (forward_camera.get_image_float(), [vehicle.get_velocity_norm(), vehicle.object.get_speed_limit(), vehicle.object.get_control().gear], command)
@@ -89,8 +97,14 @@ def get_expert_data_with_IL(env, grp: GlobalRoutePlanner, il_model: IL_Model):
             if local_planner.done():
                 done = True
 
+            completed_wps += 1
+
             expert_buffer.add((state, action, reward, next_state, done))
             state = next_state
+            steps += 1
+
+            if steps % print_stats_interval == 0:
+                print(f"Steps: {steps}, episode time: {time.time() - episode_start}, completed {completed_wps}/{num_waypoints} waypoints")
 
         il_max_reward = max(il_max_reward, total_reward)
         print(f"Reward: {total_reward}")
