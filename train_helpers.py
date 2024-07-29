@@ -103,8 +103,8 @@ def get_expert_data_with_IL(env, grp: GlobalRoutePlanner, il_model: IL_Model):
             state = next_state
             steps += 1
 
-            if steps % print_stats_interval == 0:
-                print(f"Steps: {steps}, episode time: {time.time() - episode_start}, completed {completed_wps}/{num_waypoints} waypoints")
+            # if steps % print_stats_interval == 0:
+            print(f"Steps: {steps}, episode time: {time.time() - episode_start}, completed {completed_wps}/{num_waypoints} waypoints")
 
         il_max_reward = max(il_max_reward, total_reward)
         print(f"Reward: {total_reward}")
