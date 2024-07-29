@@ -52,7 +52,11 @@ def get_expert_data_with_IL(env, grp: GlobalRoutePlanner, il_model: IL_Model):
     make_directiory(exper_dir)
     storage = LazyMemmapStorage(max_size=10000, scratch_dir=exper_dir)
     expert_buffer = ReplayBuffer(storage=storage)
+
+    print("Starting IL Rounds")
     for _ in range(10):
+        print("-------------------")
+        print(f"Round {_}")
         # reset environment and vehicle
         vehicle, forward_camera, local_planner, start_waypoint, end_waypoint = env.reset()
         
@@ -89,7 +93,7 @@ def get_expert_data_with_IL(env, grp: GlobalRoutePlanner, il_model: IL_Model):
             state = next_state
 
         il_max_reward = max(il_max_reward, total_reward)
-        print(f"IL Round {_} Complete")
+        print(f"Reward: {total_reward}")
 
     return expert_buffer, il_max_reward
 
