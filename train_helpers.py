@@ -82,6 +82,7 @@ def get_expert_data_with_IL(env, grp: GlobalRoutePlanner, il_model: IL_Model):
         state = (forward_camera.get_image_float(), [vehicle.get_velocity_norm(), vehicle.object.get_speed_limit(), vehicle.object.get_control().gear], command)
 
         while not done:
+            print("here")
             steer, throttle, brake = vehicle.get_autopilot_control(il_model, scalars=state[1], image=state[0], command=state[2])
             action = np.array([steer, throttle, brake])
             vehicle.apply_control(carla.VehicleControl(throttle=action[1], steer=action[0], brake=action[2]))
