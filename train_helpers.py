@@ -89,6 +89,7 @@ def get_expert_data_with_IL(env, grp: GlobalRoutePlanner, il_model: IL_Model):
             state = next_state
 
         il_max_reward = max(il_max_reward, total_reward)
+        print(f"IL Round {_} Complete")
 
     return expert_buffer, il_max_reward
 
