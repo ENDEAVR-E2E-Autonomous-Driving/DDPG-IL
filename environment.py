@@ -5,6 +5,7 @@ import queue
 import numpy as np
 import torch
 import math
+import time
 from agents.navigation.local_planner import LocalPlanner, RoadOption
 from agents.navigation.global_route_planner import GlobalRoutePlanner
 
@@ -167,11 +168,13 @@ class CarlaScene:
 
         # add vehicle and add collision sensor to actor list
         new_vehicle = self.add_car('vehicle.mitsubishi.fusorosa')
-        self.add_collision_sensor(new_vehicle)
+        self.add_collision_sensor(new_vehicle.object)
 
         # add forward camera
         forward_camera = CarlaCamera(vehicle=new_vehicle, z=2.3)
         self.add_camera(forward_camera)
+
+        time.sleep(1)
 
         # new planners and waypoints for routes
         local_planner = LocalPlanner(new_vehicle.object, map_inst=self.world.get_map())
@@ -185,7 +188,7 @@ class CarlaScene:
 class CarlaCamera:
     def __init__(self, vehicle, x=1.1, y=0.0, z=1.4, w=200, h=88, fov=80, rot=None, tick=None, semantic=False):
         self.vehicle = vehicle
-        self.world = vehicle.object.get_world()
+        self.world = vehicle.get_world()
         self.blueprint_library = self.world.get_blueprint_library()
 
         self.width = w
@@ -206,7 +209,7 @@ class CarlaCamera:
             self.camera_bp.set_attribute('sensor_tick', f'{tick}')
 
         self.camera_transform = carla.Transform(carla.Location(x=x, y=y, z=z), rot or carla.Rotation())
-        self.camera = self.world.spawn_actor(self.camera_bp, self.camera_transform, attach_to=self.vehicle.object)
+        self.camera = self.world.spawn_actor(self.camera_bp, self.camera_transform, attach_to=self.vehicle)
 
         self.queue = queue.LifoQueue()
         self.camera.listen(self.queue.put)
