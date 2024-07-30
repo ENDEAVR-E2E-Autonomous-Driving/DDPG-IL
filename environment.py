@@ -171,18 +171,20 @@ class CarlaScene:
         self.add_collision_sensor(new_vehicle.object)
 
         # add forward camera
-        # forward_camera = CarlaCamera(vehicle=new_vehicle.object, z=2.3)
-        # self.add_camera(forward_camera)
+        forward_camera = CarlaCamera(vehicle=new_vehicle.object, z=2.3)
+        self.add_camera(forward_camera)
 
-        time.sleep(3)
+        time.sleep(1)
 
         # new planners and waypoints for routes
         local_planner = LocalPlanner(new_vehicle.object, map_inst=self.world.get_map())
 
         start_waypoint = self.world.get_map().get_waypoint(new_vehicle.get_spawn_point().location)
         end_waypoint = self.world.get_map().get_waypoint(random.choice(self.spawn_points).location)
+
+        self.world.tick()
         
-        return new_vehicle, local_planner, start_waypoint, end_waypoint
+        return new_vehicle, forward_camera, local_planner, start_waypoint, end_waypoint
 
 
 class CarlaCamera:

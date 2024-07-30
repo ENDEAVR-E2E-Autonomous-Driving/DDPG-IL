@@ -63,9 +63,7 @@ def get_expert_data_with_IL(env, grp: GlobalRoutePlanner, il_model: IL_Model):
         print(f"Round {_}")
         # reset environment and vehicle
         # vehicle, forward_camera, local_planner, start_waypoint, end_waypoint = env.reset()
-        vehicle, local_planner, start_waypoint, end_waypoint = env.reset()
-        forward_camera = CarlaCamera(vehicle=vehicle.object, z=2.3)
-        env.add_camera(forward_camera)
+        vehicle, forward_camera, local_planner, start_waypoint, end_waypoint = env.reset()
         
         route = grp.trace_route(start_waypoint.transform.location, end_waypoint.transform.location)
         local_planner.set_global_plan(route)
@@ -88,6 +86,7 @@ def get_expert_data_with_IL(env, grp: GlobalRoutePlanner, il_model: IL_Model):
         state = (forward_camera.get_image_float(), [vehicle.get_velocity_norm(), vehicle.object.get_speed_limit(), vehicle.object.get_control().gear], command)
 
         while not done:
+            env.world.tick()
             steer, throttle, brake = vehicle.get_autopilot_control(il_model, scalars=state[1], image=state[0], command=state[2])
             action = np.array([steer, throttle, brake])
             vehicle.apply_control(carla.VehicleControl(throttle=action[1], steer=action[0], brake=action[2]))
