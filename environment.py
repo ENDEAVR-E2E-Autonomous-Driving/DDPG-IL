@@ -171,7 +171,7 @@ class CarlaScene:
         self.add_collision_sensor(new_vehicle.object)
 
         # add forward camera
-        forward_camera = CarlaCamera(vehicle=new_vehicle, z=2.3)
+        forward_camera = CarlaCamera(vehicle=new_vehicle.object, z=2.3)
         self.add_camera(forward_camera)
 
         time.sleep(1)
