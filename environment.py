@@ -231,14 +231,15 @@ class CarlaCamera:
         return rgb
     
     def get_image(self):
-        if self.queue.empty():
-            print("No image in queue")
-            return None
+        # if self.queue.empty():
+        #     print("No image in queue")
+            # return None
 
-        while not self.queue.empty():
-            # self.queue.get_nowait()
-            self.queue.get(block=True)
-            # print("waiting for image")
+        # while not self.queue.empty():
+        #     # self.queue.get_nowait()
+        #     self.queue.get(block=True)
+        #     # print("waiting for image")
+        self.queue.get(block=True)
 
         return self.process_image(self.queue.get())
 
