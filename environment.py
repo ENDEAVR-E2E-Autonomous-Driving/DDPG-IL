@@ -239,6 +239,7 @@ class CarlaCamera:
         #     # self.queue.get_nowait()
         #     self.queue.get(block=True)
         #     # print("waiting for image")
+        self.world.tick()
         self.queue.get(block=True)
 
         return self.process_image(self.queue.get())
