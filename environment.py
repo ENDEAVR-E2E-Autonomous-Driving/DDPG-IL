@@ -236,7 +236,8 @@ class CarlaCamera:
             return None
 
         while not self.queue.empty():
-            self.queue.get_nowait()
+            # self.queue.get_nowait()
+            self.queue.get(block=True)
             # print("waiting for image")
 
         return self.process_image(self.queue.get())
