@@ -172,8 +172,7 @@ class CarlaScene:
 
         # add forward camera
         # forward_camera = CarlaCamera(vehicle=new_vehicle.object, z=2.3)
-        forward_camera = CarlaCamera(vehicle=new_vehicle.object)
-        self.add_camera(forward_camera)
+        # self.add_camera(forward_camera)
 
         time.sleep(3)
 
@@ -183,7 +182,7 @@ class CarlaScene:
         start_waypoint = self.world.get_map().get_waypoint(new_vehicle.get_spawn_point().location)
         end_waypoint = self.world.get_map().get_waypoint(random.choice(self.spawn_points).location)
         
-        return new_vehicle, forward_camera, local_planner, start_waypoint, end_waypoint
+        return new_vehicle, local_planner, start_waypoint, end_waypoint
 
 
 class CarlaCamera:

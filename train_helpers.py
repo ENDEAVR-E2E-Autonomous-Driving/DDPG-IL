@@ -7,6 +7,7 @@ import random
 from model import *
 from dotenv import load_dotenv
 import time
+from environment import *
 load_dotenv()
 from agents.navigation.local_planner import LocalPlanner, RoadOption
 from agents.navigation.global_route_planner import GlobalRoutePlanner
@@ -61,7 +62,10 @@ def get_expert_data_with_IL(env, grp: GlobalRoutePlanner, il_model: IL_Model):
         print("-------------------")
         print(f"Round {_}")
         # reset environment and vehicle
-        vehicle, forward_camera, local_planner, start_waypoint, end_waypoint = env.reset()
+        # vehicle, forward_camera, local_planner, start_waypoint, end_waypoint = env.reset()
+        vehicle, local_planner, start_waypoint, end_waypoint = env.reset()
+        forward_camera = CarlaCamera(vehicle=vehicle.object, z=2.3)
+        env.add_camera(forward_camera)
         
         route = grp.trace_route(start_waypoint.transform.location, end_waypoint.transform.location)
         local_planner.set_global_plan(route)
