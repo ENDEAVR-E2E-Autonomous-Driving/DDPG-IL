@@ -142,7 +142,7 @@ class CarlaScene:
         collision_sensor = self.world.spawn_actor(
             blueprint,
             carla.Transform(),
-            attach_to=vehicle.object
+            attach_to=vehicle
         )
         collision_sensor.listen(lambda event: self._on_collision(event))
 
