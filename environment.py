@@ -18,7 +18,8 @@ class CarlaScene:
         self.world.set_weather(weather)
 
         settings = self.world.get_settings()
-        settings.synchronous_mode = True
+        # settings.synchronous_mode = True
+        settings.synchronous_mode = False
         settings.fixed_delta_seconds = (1.0 / 30)
         self.world.apply_settings(settings)
 
@@ -182,7 +183,7 @@ class CarlaScene:
         start_waypoint = self.world.get_map().get_waypoint(new_vehicle.get_spawn_point().location)
         end_waypoint = self.world.get_map().get_waypoint(random.choice(self.spawn_points).location)
 
-        self.world.tick()
+        # self.world.tick()
         
         return new_vehicle, forward_camera, local_planner, start_waypoint, end_waypoint
 
@@ -232,7 +233,7 @@ class CarlaCamera:
     def get_image(self):
         if self.queue.empty():
             print("No image in queue")
-            # return None
+            return None
 
         while not self.queue.empty():
             self.queue.get_nowait()
