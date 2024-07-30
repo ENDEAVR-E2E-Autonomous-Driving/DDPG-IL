@@ -53,7 +53,7 @@ class CarlaScene:
 
         self.actors.append(vehicle)
 
-        return CarlaVehicle(vehicle, self.world, spawn_point)
+        return CarlaVehicle(vehicle, spawn_point)
 
     def add_game_camera(self, camera):
         self.actors.append(camera.camera)
