@@ -18,8 +18,8 @@ class CarlaScene:
         self.world.set_weather(weather)
 
         settings = self.world.get_settings()
-        # settings.synchronous_mode = True
-        settings.synchronous_mode = False
+        settings.synchronous_mode = True
+        # settings.synchronous_mode = False
         settings.fixed_delta_seconds = (1.0 / 30)
         self.world.apply_settings(settings)
 
