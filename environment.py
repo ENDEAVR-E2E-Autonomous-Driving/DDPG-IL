@@ -232,9 +232,10 @@ class CarlaCamera:
     def get_image(self):
         if self.queue.empty():
             print("No image in queue")
-            return None
+            # return None
 
         while not self.queue.empty():
+            print("waiting for image")
             self.queue.get_nowait()
 
         return self.process_image(self.queue.get())
@@ -243,7 +244,7 @@ class CarlaCamera:
         image = self.get_image()
         if image is None:
             print("No image processed")
-            return None
+            # return None
 
         return image.astype('float32') / 255.0
 
