@@ -261,7 +261,7 @@ class CarlaCamera:
 
 
 class CarlaVehicle:
-    def __init__(self, vehicle, world, spawn_point=None):
+    def __init__(self, vehicle, spawn_point=None):
         self.object = vehicle
 
         self._last_steer = 0.0
