@@ -210,6 +210,7 @@ class CarlaCamera:
 
         self.queue = queue.LifoQueue()
         self.camera.listen(self.queue.put)
+        print("Camera initialized")
 
     def process_image(self, data):
         if self.semantic:
@@ -222,20 +223,38 @@ class CarlaCamera:
         rgb = bgr[:, :, ::-1]
 
         return rgb
-
+    
     def get_image(self):
+        if self.queue.empty():
+            print("No image in queue")
+            return None
+
         while not self.queue.empty():
             self.queue.get_nowait()
 
         return self.process_image(self.queue.get())
 
     def get_image_float(self):
-        image = self.process_image(self.queue.get())
-
-        while not self.queue.empty():
-            self.queue.get_nowait()
+        image = self.get_image()
+        if image is None:
+            print("No image processed")
+            return None
 
         return image.astype('float32') / 255.0
+
+    # def get_image(self):
+    #     while not self.queue.empty():
+    #         self.queue.get_nowait()
+
+    #     return self.process_image(self.queue.get())
+
+    # def get_image_float(self):
+    #     image = self.process_image(self.queue.get())
+
+    #     while not self.queue.empty():
+    #         self.queue.get_nowait()
+
+    #     return image.astype('float32') / 255.0
 
 
 class CarlaVehicle:
@@ -307,7 +326,7 @@ class CarlaVehicle:
         velocity = self.get_velocity()
 
         # get vehicle heading and waypoint heading in radians
-        vehicle_transform = self.vehicle.get_transform()
+        vehicle_transform = self.object.get_transform()
         vehicle_yaw_rad = math.radians(vehicle_transform.rotation.yaw)
         waypoint_yaw_rad = math.radians(closest_waypoint.transform.rotation.yaw)
 
