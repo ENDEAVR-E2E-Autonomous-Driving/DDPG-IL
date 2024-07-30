@@ -174,7 +174,7 @@ class CarlaScene:
         forward_camera = CarlaCamera(vehicle=new_vehicle.object, z=2.3)
         self.add_camera(forward_camera)
 
-        time.sleep(1)
+        time.sleep(3)
 
         # new planners and waypoints for routes
         local_planner = LocalPlanner(new_vehicle.object, map_inst=self.world.get_map())
