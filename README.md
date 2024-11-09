@@ -47,7 +47,7 @@ CarlaUE4.exe  -RenderOffScreen # Windows
 ```
 10. Run the training program, happy training!
 ```
-python train.py
+python train_ddpg.py
 ```
 
 # Running the Trained Model
