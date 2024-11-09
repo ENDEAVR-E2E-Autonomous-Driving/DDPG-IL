@@ -8,18 +8,21 @@ import math
 import time
 from agents.navigation.local_planner import LocalPlanner, RoadOption
 from agents.navigation.global_route_planner import GlobalRoutePlanner
+import ctypes
 
 
 class CarlaScene:
-    def __init__(self, town='Town10HD', weather=carla.WeatherParameters.ClearNoon, steer_image_path=None):
-        self.client = carla.Client('127.0.0.1', 2000)
+    def __init__(self, town='Town10HD', weather=carla.WeatherParameters.ClearNoon, host_ip_adress=None, steer_image_path=None):
+        """
+        host_ip_address: IP address of the host system that runs the CARLA server if running the client from a different port, such as WSL
+        """
+        self.client = carla.Client(host_ip_adress if host_ip_adress else 'localhost', 2000)
         self.client.set_timeout(10.0)
         self.world = self.client.load_world(town)
         self.world.set_weather(weather)
 
         settings = self.world.get_settings()
         settings.synchronous_mode = True
-        # settings.synchronous_mode = False
         settings.fixed_delta_seconds = (1.0 / 30)
         self.world.apply_settings(settings)
 
@@ -30,23 +33,52 @@ class CarlaScene:
         self._game_camera = None
         self._clock = pygame.time.Clock()
 
-        # self._steer_image = pygame.image.load('assets/wheel.png') 
+        self._steer_image = pygame.image.load('assets/wheel.png') 
 
-        # for waypoints
-        self.spectator = self.world.get_spectator()
-        self.spawn_points = [] # spawn points are stored when a car is added
+        self.spawn_points = self.world.get_map().get_spawn_points()
 
         # collision info
         self.collision_history = []
 
+        self.lookahead_steps = 20
+
+    def set_spectator_position(self, height: float):
+        self.spectator = self.world.get_spectator()
+        # initialize variables to compute the average x, y, and z of the spawn points
+        total_x, total_y, total_z = 0, 0, 0
+
+        # sum all spawn points' locations
+        for spawn_point in self.spawn_points:
+            total_x += spawn_point.location.x
+            total_y += spawn_point.location.y
+            total_z += spawn_point.location.z
+        
+        # compute average to get the approximate center of the map
+        num_points = len(self.spawn_points)
+        center_x = total_x / num_points
+        center_y = total_y / num_points
+        center_z = total_z / num_points
+
+        # The center of the town
+        town_center = carla.Location(center_x, center_y, center_z)
+
+        # height = height # height of spectator view
+        birdseye_position = carla.Location(town_center.x, town_center.y, town_center.z + height) # position of spectator
+        birdseye_rotation = carla.Rotation(pitch=-90, yaw=0, roll=0) # rotation to look straight down (-90 degree pitch)
+
+        self.spectator.set_transform(carla.Transform(birdseye_position, birdseye_rotation))
+
+
     def add_car(self, blueprint_name='vehicle.ford.crown', spawn_point=None):
         if spawn_point is None:
-            spawn_points = self.world.get_map().get_spawn_points()
-            spawn_point = random.choice(spawn_points)
-            self.spawn_points = spawn_points
+            # spawn_points = self.world.get_map().get_spawn_points()
+            spawn_point = random.choice(self.spawn_points)
+            # print(f"Vehicle spawn point: {spawn_point.location}")
+            # self.spawn_points = spawn_points
 
         blueprint = self.blueprint_library.find(blueprint_name)
         vehicle = self.world.spawn_actor(blueprint, spawn_point)
+        print(f"vehicle name: {vehicle.type_id}")
 
         physics_control = vehicle.get_physics_control()
         physics_control.use_sweep_wheel_collision = True
@@ -68,6 +100,7 @@ class CarlaScene:
         pygame.font.init()
         self.display = pygame.display.set_mode((w, h), pygame.HWSURFACE | pygame.DOUBLEBUF | pygame.RESIZABLE)
         self.w, self.h = w, h
+        ctypes.windll.user32.SetForegroundWindow(pygame.display.get_wm_info()['window'])
 
     def get_window_size(self):
         return self.w, self.h
@@ -104,16 +137,17 @@ class CarlaScene:
                 surface = pygame.surfarray.make_surface(game_image.swapaxes(0, 1))
                 self.display.blit(surface, (0, 0))
 
-        font = pygame.font.Font(None, 24)
-        self.display.blit(font.render('% 5d FPS (real)' % self._clock.get_fps(), True, (255, 255, 255)), (8, 10))
-        self._clock.tick(30)
+            font = pygame.font.Font(None, 24)
+            self.display.blit(font.render('% 5d FPS (real)' % self._clock.get_fps(), True, (255, 255, 255)), (8, 10))
+            self._clock.tick(30)
 
     def update_display(self):
         pygame.display.flip()
 
     def cleanup(self):
         for actor in self.actors:
-            actor.destroy()
+            if actor.is_alive:
+                actor.destroy()
         pygame.quit()
 
     def add_traffic(self, num_cars=35):
@@ -149,44 +183,15 @@ class CarlaScene:
 
         self.actors.append(collision_sensor)
 
+        return collision_sensor
+
     def _on_collision(self, event):
         self.collision_history.append(event)
+        print(f"Collision detected: {event}")
     
     def get_collision_history(self):
         return self.collision_history
     
-    def reset(self):
-        """
-        Used for reinitializing actors in a CARLA environment in Deep Reinforcement Learning.
-        - Destroys all current actors and returns a new vehicle with a camera and collision sensor attached.
-        - Initializes new spawn points, waypoints, planners, and randomized routes
-        """
-        # vehicle_name = vehicle.type_id
-
-        # destroy existing all actors and intialize new ones
-        self.cleanup()
-        self.collision_history.clear()
-
-        # add vehicle and add collision sensor to actor list
-        new_vehicle = self.add_car('vehicle.mitsubishi.fusorosa')
-        self.add_collision_sensor(new_vehicle.object)
-
-        # add forward camera
-        forward_camera = CarlaCamera(vehicle=new_vehicle.object, z=2.3)
-        self.add_camera(forward_camera)
-
-        time.sleep(1)
-
-        # new planners and waypoints for routes
-        local_planner = LocalPlanner(new_vehicle.object, map_inst=self.world.get_map())
-
-        start_waypoint = self.world.get_map().get_waypoint(new_vehicle.get_spawn_point().location)
-        end_waypoint = self.world.get_map().get_waypoint(random.choice(self.spawn_points).location)
-
-        # self.world.tick()
-        
-        return new_vehicle, forward_camera, local_planner, start_waypoint, end_waypoint
-
 
 class CarlaCamera:
     def __init__(self, vehicle, x=1.1, y=0.0, z=1.4, w=200, h=88, fov=80, rot=None, tick=None, semantic=False):
@@ -216,7 +221,6 @@ class CarlaCamera:
 
         self.queue = queue.LifoQueue()
         self.camera.listen(self.queue.put)
-        print("Camera initialized")
 
     def process_image(self, data):
         if self.semantic:
@@ -229,46 +233,20 @@ class CarlaCamera:
         rgb = bgr[:, :, ::-1]
 
         return rgb
-    
-    def get_image(self):
-        # if self.queue.empty():
-        #     print("No image in queue")
-            # return None
 
-        # while not self.queue.empty():
-        #     # self.queue.get_nowait()
-        #     self.queue.get(block=True)
-        #     # print("waiting for image")
-        while True:
-            if not self.queue.empty():
-                break
-            print("waiting for image in queue")
-            self.world.tick()
-            self.queue.get()
+    def get_image(self):
+        while not self.queue.empty():
+            self.queue.get_nowait()
 
         return self.process_image(self.queue.get())
 
     def get_image_float(self):
-        image = self.get_image()
-        if image is None:
-            print("No image processed")
-            # return None
+        image = self.process_image(self.queue.get())
+
+        while not self.queue.empty():
+            self.queue.get_nowait()
 
         return image.astype('float32') / 255.0
-
-    # def get_image(self):
-    #     while not self.queue.empty():
-    #         self.queue.get_nowait()
-
-    #     return self.process_image(self.queue.get())
-
-    # def get_image_float(self):
-    #     image = self.process_image(self.queue.get())
-
-    #     while not self.queue.empty():
-    #         self.queue.get_nowait()
-
-    #     return image.astype('float32') / 255.0
 
 
 class CarlaVehicle:
@@ -280,14 +258,25 @@ class CarlaVehicle:
         self._spawn_point = spawn_point
 
         self.stuck_steps = 0
+        self.angle_deviation_steps = 0
+    
+    def set_num_waypoints(self, num_waypoints):
+        self.num_waypoints = num_waypoints
+    
+    def draw_vehicle_location(self, scene, lifetime):
+        location = self.object.get_transform().location
+        location.z += 10
+
+        scene.world.debug.draw_string(location, "HERE", color=carla.Color(0,0,0), life_time=0)
 
     def get_spawn_point(self):
         return self._spawn_point
 
-    def reset(self):
-        if self._spawn_point:
-            self.object.set_target_velocity(carla.Vector3D())
-            self.object.set_transform(self._spawn_point)
+    def reset(self, scene):
+        self.stuck_steps = 0
+        spawn_point = random.choice(scene.world.get_map().get_spawn_points())
+        self.object.set_target_velocity(carla.Vector3D())
+        self.object.set_transform(spawn_point)
 
     def apply_control(self, control):
         if control.brake < 0.01:
@@ -297,86 +286,158 @@ class CarlaVehicle:
 
     def get_velocity(self):
         velocity = self.object.get_velocity()
-        return np.sqrt(velocity.x ** 2 + velocity.y ** 2 + velocity.z ** 2) * 3.6
+        return np.sqrt(velocity.x ** 2 + velocity.y ** 2 + velocity.z ** 2) * 3.6 # convert to km/h
+
+    def get_velocity_mps(self):
+        velocity_kmh = self.get_velocity()
+        return velocity_kmh / 3.6
 
     def get_velocity_norm(self):
         return self.get_velocity() / 120.0
 
-    def get_autopilot_control(self, model, scalars, image, command, for_training=False):
+    def get_autopilot_control(self, model, scalars, image, command, device=torch.device('cpu'), for_training=False):
         if model:
             image = image.transpose((2, 0, 1))
-            image = torch.from_numpy(image).float().unsqueeze(0)
-            scalars = torch.tensor(scalars, dtype=torch.float32).unsqueeze(0)
-            command = torch.tensor([command], dtype=torch.uint8).unsqueeze(0)
+            image = torch.from_numpy(image).float().unsqueeze(0).to(device)
+            scalars = torch.tensor(scalars, dtype=torch.float32).unsqueeze(0).to(device)
+            command = torch.tensor([command], dtype=torch.uint8).unsqueeze(0).to(device)
 
             with torch.no_grad():
                 output = model(image, scalars, command)
                 steer, throttle, brake = tuple(output.squeeze().tolist())
 
-            if not for_training:
-                steer = self._last_steer + (steer - self._last_steer) * 0.10
-                throttle = self._last_throttle + (throttle - self._last_throttle) * 0.25
+            steer = self._last_steer + (steer - self._last_steer) * 0.10
+            throttle = self._last_throttle + (throttle - self._last_throttle) * 0.25
 
-                self._last_steer = steer
-                self._last_throttle = throttle
+            self._last_steer = steer
+            self._last_throttle = throttle
 
-                if self.get_velocity() >= 20.0:
-                    throttle = 0.0
+            if for_training:
+                throttle = max(min(throttle, 0.8), 0.2)  # Limit throttle between 20% and 80%
 
             return steer, throttle, brake
-        
-    def get_reward(self, closest_waypoint, collision_history):
+
+    def compute_theta(self, vehicle_yaw_rad, curr_waypoint, num_waypoints_ahead=5):
         """
-        Vehicle reward function: R_t = V_x * cos(theta) - V_x * sin(theta) - V_x * lanePostion - P
-
-        V_x = velocity of the vehicle, theta = angle between vehicle and road center, 
-        lanePosition = off-center position of vehicle, P = additional penalty
-
-        V_x * cos(theta) = vehicle's velocity along direction of the road
-        V_x * sin(theta) = vehicle's velocity perpendicular to the road
-        V_x * lanePosition = penalty for the vehicle being off the center of the lane
+        Computes theta for the reward function, considering the road direction over multiple waypoints ahead.
         """
-        
-        velocity = self.get_velocity()
+        # Get multiple waypoints ahead to account for curvature
+        accumulated_direction = np.array([0.0, 0.0])
+        current_wp = curr_waypoint
 
-        # get vehicle heading and waypoint heading in radians
+        for _ in range(num_waypoints_ahead):
+            next_waypoints = current_wp.next(2.0)  # Get the next waypoint 2m ahead
+            if len(next_waypoints) > 0:
+                next_waypoint = next_waypoints[0]
+                # Compute the direction from the current waypoint to the next
+                waypoint_direction = np.array([next_waypoint.transform.location.x - current_wp.transform.location.x,
+                                            next_waypoint.transform.location.y - current_wp.transform.location.y])
+                waypoint_direction /= np.linalg.norm(waypoint_direction)  # Normalize the direction vector
+                accumulated_direction += waypoint_direction  # Accumulate direction over multiple waypoints
+                current_wp = next_waypoint  # Move to the next waypoint for the next iteration
+            else:
+                break
+
+        if np.linalg.norm(accumulated_direction) == 0:
+            return None  # No direction available
+
+        # Normalize the accumulated direction to get the road's overall heading
+        road_direction = accumulated_direction / np.linalg.norm(accumulated_direction)
+
+        # Compute the road direction in radians (yaw)
+        road_yaw_rad = np.arctan2(road_direction[1], road_direction[0])
+
+        # Compute theta as the difference between vehicle yaw and road direction
+        theta = vehicle_yaw_rad - road_yaw_rad
+        theta = (theta + math.pi) % (2 * math.pi) - math.pi  # Normalize to [-pi, pi]
+
+        return theta
+
+    def compute_curvature(self, curr_waypoint, num_waypoints_ahead=5):
+        """
+        Computes an estimate of the road curvature by measuring the angle difference
+        between the current waypoint and multiple waypoints ahead.
+        """
+        curvature_sum = 0
+        current_wp = curr_waypoint
+
+        for _ in range(num_waypoints_ahead):
+            next_waypoints = current_wp.next(2.0)  # Get the next waypoint 2 meters ahead
+            if len(next_waypoints) > 0:
+                next_waypoint = next_waypoints[0]
+                # Compute direction between current and next waypoint
+                current_direction = np.array([next_waypoint.transform.location.x - current_wp.transform.location.x,
+                                            next_waypoint.transform.location.y - current_wp.transform.location.y])
+                current_direction /= np.linalg.norm(current_direction)
+
+                # Compute direction of the next segment if possible
+                future_waypoints = next_waypoint.next(2.0)
+                if len(future_waypoints) > 0:
+                    future_direction = np.array([future_waypoints[0].transform.location.x - next_waypoint.transform.location.x,
+                                                future_waypoints[0].transform.location.y - next_waypoint.transform.location.y])
+                    future_direction /= np.linalg.norm(future_direction)
+
+                    # Calculate angle between current and future direction vectors (curvature)
+                    angle_diff = np.arccos(np.clip(np.dot(current_direction, future_direction), -1.0, 1.0))
+                    curvature_sum += angle_diff
+                current_wp = next_waypoint
+            else:
+                break
+
+        # Return average curvature
+        return curvature_sum / num_waypoints_ahead if num_waypoints_ahead > 0 else 0
+
+    def get_reward(self, scene, collision_history):
+        done = False
+
+        velocity = self.get_velocity_mps()
         vehicle_transform = self.object.get_transform()
         vehicle_yaw_rad = math.radians(vehicle_transform.rotation.yaw)
+        closest_waypoint = scene.world.get_map().get_waypoint(vehicle_transform.location, project_to_road=True, lane_type=carla.LaneType.Driving)
         waypoint_yaw_rad = math.radians(closest_waypoint.transform.rotation.yaw)
 
-        # compute the angle between the vehicle's heading and the waypoint's direction
         theta = vehicle_yaw_rad - waypoint_yaw_rad
-        theta = (theta + math.pi) % (2 * math.pi) - math.pi  # normalize angle to [-pi, pi]
+        theta = (theta + math.pi) % (2 * math.pi) - math.pi
 
-        # compute lanePosition (deviation from the current waypoint)
-        lanePosition = closest_waypoint.transform.location.distance(vehicle_transform.location)
+        speed_along_lane = velocity * math.cos(theta)
+        speed_lateral = velocity * math.sin(theta)
 
-        # base reward without additional penalty
-        reward = (velocity * math.cos(theta)) - (velocity * math.sin(theta)) - velocity * lanePosition
+        vehicle_position = np.array([vehicle_transform.location.x, vehicle_transform.location.y])
+        waypoint_position = np.array([closest_waypoint.transform.location.x, closest_waypoint.transform.location.y])
 
-        # additional penalties
-        additional_penalty = 0
+        # Use the waypoint heading (not vehicle yaw) for correct direction
+        waypoint_yaw_rad = math.radians(closest_waypoint.transform.rotation.yaw)
+        waypoint_direction = np.array([np.cos(waypoint_yaw_rad), np.sin(waypoint_yaw_rad)])
 
-        if len(collision_history) > 0: # collision penalty
-            additional_penalty += 50
-        if lanePosition > 2.0: # off-road penalty
-            additional_penalty += 50
-        
-        angle_threshold = math.radians(30) # 30 degrees
-        if abs(theta) > angle_threshold: # high angle deviation penalty
-            additional_penalty += 10
-        
-        done = False
-        if velocity < 0.1: # stuck penalty
+        vehicle_to_waypoint = vehicle_position - waypoint_position
+        lane_deviation = np.abs(np.cross(waypoint_direction, vehicle_to_waypoint))
+
+        alpha, beta, eta = 0.33, 0.33, 0.33
+        # restricting to 15 m/s = 33.3 mph
+        r_speed = velocity if velocity < 13.0 else 13.0-velocity
+        # r_speed = velocity / 15
+        r_center = speed_along_lane - abs(speed_lateral) - lane_deviation - (speed_along_lane * lane_deviation)
+        r_out = 0 if lane_deviation < 5.0 else 25 - lane_deviation
+
+        reward = alpha * r_speed + beta * r_center + eta * r_out
+
+        if velocity < 0.5:
             self.stuck_steps += 1
-            if self.stuck_steps >= 7: # num consecutive low-speed steps to be considered stuck
-                done = True
         else:
-            self.stuck_steps = 0 # reset if not stuck anymore
+            self.stuck_steps = 0
 
-        # final reward
-        reward -= additional_penalty
+        if self.stuck_steps >= 200:
+            done = True
+            print("Episode finished: stuck")
+        if lane_deviation > 20.0:
+            done = True
+            print(f"Episode finished: lane deviation {lane_deviation} meters")
+        if len(collision_history) > 0:
+            done = True
+            print("Episode finished: collision")
 
-        return reward, done
+        return reward, done, lane_deviation, velocity, theta
+    
+
 
 

@@ -182,7 +182,7 @@ class IL_Model(nn.Module):
         return output
 
 
-def load_model(model_path, device, base_model: Union[IL_Model, Actor, Critic, torch.optim.Adam]):
+def load_model(model_path, base_model: Union[IL_Model, Actor, Critic, torch.optim.Adam]):
     """
     Loads a saved model.
 
@@ -197,10 +197,11 @@ def load_model(model_path, device, base_model: Union[IL_Model, Actor, Critic, to
         raise FileNotFoundError("Model path does not exist.")
     
     try:
-        base_model.load_state_dict(torch.load(model_path, map_location=device))
-        print("Imitation Learning model loaded")
+        # base_model.load_state_dict(torch.load(model_path, map_location=device))
+        base_model.load_state_dict(torch.load(model_path))
+        print(f"{model_path[2:][:-4]} model loaded")
     except FileNotFoundError:
-        print("Imitation Learning model not found")
+        print(f"{model_path[2:][:-4]} model not found")
         return
     
     return base_model
