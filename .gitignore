@@ -1,5 +1,5 @@
 *.env
-# *.pth
+*.pth
 *.json
 __pycache__
 expert_buffer
