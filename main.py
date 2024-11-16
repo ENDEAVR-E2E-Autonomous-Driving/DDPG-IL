@@ -39,7 +39,7 @@ input_manager = InputManager()
 save_queue = queue.Queue()
 
 # Load the model (or an empty model if it doesn't exist)
-il_model_path = os.environ.get('IL_MODEL')
+il_model_path = os.environ.get('MODEL')
 model = load_model(il_model_path, base_model=IL_Model())
 
 # Add a car to the scene

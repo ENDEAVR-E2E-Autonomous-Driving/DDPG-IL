@@ -1,7 +1,8 @@
 *.env
-*.pth
+# *.pth
 *.json
 __pycache__
 expert_buffer
 exploration_buffer
 agents
+model_weights
